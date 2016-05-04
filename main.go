@@ -6,10 +6,16 @@ import (
 	"io/ioutil"
 	"gopkg.in/gographics/imagick.v2/imagick"
 	"log"
+	"strings"
 )
 
 func main() {
-	var resizerDir = "/Users/tantai/Desktop/imgresizer_test/"
+	if len(os.Args) != 2 {
+		log.Fatal("Not found dir args")
+	}
+	resizerDir := os.Args[1]
+
+	fmt.Printf("Resize images in folder %v\n", resizerDir)
 
 	imagick.Initialize()
     defer imagick.Terminate()
@@ -20,6 +26,18 @@ func main() {
     }
 
     for _, file := range files {
+    	if file.IsDir() {
+    		continue
+    	}
+
+    	if !strings.HasSuffix(strings.ToLower(file.Name()), "jpg") && 
+    		!strings.HasSuffix(strings.ToLower(file.Name()), "jpeg") &&
+    		!strings.HasSuffix(strings.ToLower(file.Name()), "png") {
+    			continue
+    	}
+
+    	fmt.Printf("Found file %v\n", file.Name())
+
     	f, err := os.Open(resizerDir + file.Name())
 		if err != nil {
     		log.Fatal(err)
