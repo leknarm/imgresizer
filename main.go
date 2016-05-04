@@ -7,20 +7,24 @@ import (
 	"gopkg.in/gographics/imagick.v2/imagick"
 	"log"
 	"strings"
+	"flag"
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		log.Fatal("Not found dir args")
-	}
-	resizerDir := os.Args[1]
+	resizerDir := flag.String("dir", "", "directory")
+	ratio := flag.Float64("ratio", 0.5, "resize ratio")
 
-	fmt.Printf("Resize images in folder %v\n", resizerDir)
+	flag.Parse()
+	if len(*resizerDir) == 0 {
+		log.Fatal("Not found directory to resize")
+	}
+
+	fmt.Printf("Resize images in folder %v\n", *resizerDir)
 
 	imagick.Initialize()
     defer imagick.Terminate()
 
-    files, err := ioutil.ReadDir(resizerDir)
+    files, err := ioutil.ReadDir(*resizerDir)
     if err != nil {
     	log.Fatal(err)
     }
@@ -38,7 +42,7 @@ func main() {
 
     	fmt.Printf("Found file %v\n", file.Name())
 
-    	f, err := os.Open(resizerDir + file.Name())
+    	f, err := os.Open(*resizerDir + file.Name())
 		if err != nil {
     		log.Fatal(err)
     	}
@@ -51,12 +55,12 @@ func main() {
 		}
 
 		// Get original logo size
-		width := mw.GetImageWidth()
-		height := mw.GetImageHeight()
+		width := float64(mw.GetImageWidth()) * (*ratio)
+		height := float64(mw.GetImageHeight()) * (*ratio)
 
 		// Calculate half the size
-		hWidth := uint(width / 2)
-		hHeight := uint(height / 2)
+		hWidth := uint(width)
+		hHeight := uint(height)
 
 		// Resize the image using the Lanczos filter
 		// The blur factor is a float, where > 1 is blurry, < 1 is sharp
@@ -71,7 +75,7 @@ func main() {
 			panic(err)
 		}
 
-		mw.WriteImage(resizerDir + "rz_" + file.Name())
+		mw.WriteImage(*resizerDir + "rz_" + file.Name())
 		fmt.Printf("%v: resized to %vx%v\n", file.Name(), mw.GetImageWidth(), mw.GetImageHeight())
 
     }
