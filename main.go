@@ -10,14 +10,13 @@ import (
 	"flag"
 )
 
-func resize(path string, ratio float64, quality int) {
+func resize(mw *imagick.MagickWand, path string, ratio float64, quality int) {
 	var err error
 	f, err := os.Open(path)
+	defer f.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
-	
-	mw := imagick.NewMagickWand()
 
 	err = mw.ReadImageFile(f)
 	if err != nil {
@@ -49,11 +48,11 @@ func resize(path string, ratio float64, quality int) {
 	fmt.Printf("Resized %vx%v -> %vx%v\n", width, height, hWidth, hHeight)
 }
 
-func resizeFile(path string, ratio float64, quality int) {
-	resize(path, ratio, quality)
+func resizeFile(mw *imagick.MagickWand, path string, ratio float64, quality int) {
+	resize(mw, path, ratio, quality)
 }
 
-func resizeDirectory(dir string, ratio float64, quality int) {
+func resizeDirectory(mw *imagick.MagickWand, dir string, ratio float64, quality int) {
 	files, err := ioutil.ReadDir(dir)
     if err != nil {
     	log.Fatal(err)
@@ -71,7 +70,7 @@ func resizeDirectory(dir string, ratio float64, quality int) {
     	}
 
     	fmt.Printf("Found file %v\n", file.Name())
-    	resize(dir + file.Name(), ratio, quality)
+    	resize(mw, dir + file.Name(), ratio, quality)
     }
 }
 
@@ -89,12 +88,14 @@ func main() {
 	imagick.Initialize()
     defer imagick.Terminate()
 
+    mw := imagick.NewMagickWand()
+
 	if len(*filePath) > 0 {
 		fmt.Printf("Resize image: %v\n", *filePath)
-		resizeFile(*filePath, *ratio, *quality)
+		resizeFile(mw, *filePath, *ratio, *quality)
 	} else {
 		fmt.Printf("Resize images in folder %v\n", *resizerDir)
-		resizeDirectory(*resizerDir, *ratio, *quality)
+		resizeDirectory(mw, *resizerDir, *ratio, *quality)
 	}
 
 }
