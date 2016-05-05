@@ -10,26 +10,56 @@ import (
 	"flag"
 )
 
-func main() {
-	resizerDir := flag.String("dir", "", "directory")
-	ratio := flag.Float64("ratio", 0.5, "resize ratio")
+func resize(path string, ratio float64, quality int) {
+	var err error
+	f, err := os.Open(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	
+	mw := imagick.NewMagickWand()
 
-	flag.Parse()
-	if len(*resizerDir) == 0 {
-		log.Fatal("Not found directory to resize")
+	err = mw.ReadImageFile(f)
+	if err != nil {
+		panic(err)
 	}
 
-	fmt.Printf("Resize images in folder %v\n", *resizerDir)
+	// Get original logo size
+	width := float64(mw.GetImageWidth())
+	height := float64(mw.GetImageHeight())
 
-	imagick.Initialize()
-    defer imagick.Terminate()
+	// Calculate half the size
+	hWidth := uint(width * ratio)
+	hHeight := uint(height * ratio)
 
-    files, err := ioutil.ReadDir(*resizerDir)
+	// Resize the image using the Lanczos filter
+	// The blur factor is a float, where > 1 is blurry, < 1 is sharp
+	err = mw.ResizeImage(hWidth, hHeight, imagick.FILTER_LANCZOS, 1)
+	if err != nil {
+		panic(err)
+	}
+
+	// Set the compression quality to 95 (high quality = low compression)
+	err = mw.SetImageCompressionQuality(uint(quality))
+	if err != nil {
+		panic(err)
+	}
+
+	mw.WriteImage(f.Name())
+	fmt.Printf("Resized %vx%v -> %vx%v\n", width, height, hWidth, hHeight)
+}
+
+func resizeFile(path string, ratio float64, quality int) {
+	resize(path, ratio, quality)
+}
+
+func resizeDirectory(dir string, ratio float64, quality int) {
+	files, err := ioutil.ReadDir(dir)
     if err != nil {
     	log.Fatal(err)
     }
 
-    for _, file := range files {
+	for _, file := range files {
     	if file.IsDir() {
     		continue
     	}
@@ -41,42 +71,30 @@ func main() {
     	}
 
     	fmt.Printf("Found file %v\n", file.Name())
-
-    	f, err := os.Open(*resizerDir + file.Name())
-		if err != nil {
-    		log.Fatal(err)
-    	}
-
-    	mw := imagick.NewMagickWand()
-
-    	err = mw.ReadImageFile(f)
-		if err != nil {
-			panic(err)
-		}
-
-		// Get original logo size
-		width := float64(mw.GetImageWidth()) * (*ratio)
-		height := float64(mw.GetImageHeight()) * (*ratio)
-
-		// Calculate half the size
-		hWidth := uint(width)
-		hHeight := uint(height)
-
-		// Resize the image using the Lanczos filter
-		// The blur factor is a float, where > 1 is blurry, < 1 is sharp
-		err = mw.ResizeImage(hWidth, hHeight, imagick.FILTER_LANCZOS, 1)
-		if err != nil {
-			panic(err)
-		}
-
-		// Set the compression quality to 95 (high quality = low compression)
-		err = mw.SetImageCompressionQuality(95)
-		if err != nil {
-			panic(err)
-		}
-
-		mw.WriteImage(*resizerDir + "rz_" + file.Name())
-		fmt.Printf("%v: resized to %vx%v\n", file.Name(), mw.GetImageWidth(), mw.GetImageHeight())
-
+    	resize(dir + file.Name(), ratio, quality)
     }
+}
+
+func main() {
+	resizerDir := flag.String("dir", "", "Directory of images to resize")
+	filePath := flag.String("file", "", "Path file to resize")
+	ratio := flag.Float64("ratio", 0.5, "Resize ratio (0 > ratio < 1)")
+	quality := flag.Int("quality", 95, "Image quality (default 95)")
+
+	flag.Parse()
+	if len(*resizerDir) == 0 && len(*filePath) == 0 {
+		log.Fatal("Not found image file or directory to resize")
+	}
+
+	imagick.Initialize()
+    defer imagick.Terminate()
+
+	if len(*filePath) > 0 {
+		fmt.Printf("Resize image: %v\n", *filePath)
+		resizeFile(*filePath, *ratio, *quality)
+	} else {
+		fmt.Printf("Resize images in folder %v\n", *resizerDir)
+		resizeDirectory(*resizerDir, *ratio, *quality)
+	}
+
 }
